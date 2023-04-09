@@ -209,23 +209,6 @@ static bool should_stay_in_bootloader()
 	return wd_says_so || check_for_sd_application(sd_get_by_num(0));
 }
 
-static bool handle_erase(uint32_t addr, uint32_t size)
-{
-	if ((addr < APP_ADDR_MIN) || (addr + size >= FLASH_ADDR_MAX)) {
-		// Outside flash
-		return false;
-	}
-
-	if ((addr & (FLASH_SECTOR_SIZE - 1)) || (size & (FLASH_SECTOR_SIZE - 1))) {
-		// Must be aligned
-		return false;
-	}
-
-	flash_range_erase(addr - XIP_BASE, size);
-
-	return true;
-}
-
 void load_from_sd(sd_card_t* pSd)
 {
 	// Keep trying to load forever
