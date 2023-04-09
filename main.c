@@ -238,8 +238,8 @@ void load_from_sd(sd_card_t* pSd)
 			FRESULT fr = f_open(&file, SD_APPLICATION_NAME, FA_READ | FA_OPEN_EXISTING);
 			if (FR_OK == fr)
 			{
-				// Erase entire application area
-				//flash_range_erase(IMAGE_HEADER_OFFSET, PICO_FLASH_SIZE_BYTES - IMAGE_HEADER_OFFSET);
+				// Erase the header area to invalidate the application
+				flash_range_erase(IMAGE_HEADER_OFFSET, FLASH_SECTOR_SIZE);
 
 				uint8_t header[FLASH_SECTOR_SIZE];
 				memset(header, 0xFF, sizeof(header));
@@ -288,7 +288,6 @@ void load_from_sd(sd_card_t* pSd)
 
 				// TODO: only write if above was successful
 				// Write header last
-				flash_range_erase(IMAGE_HEADER_OFFSET, sizeof(header));
 				flash_range_program(IMAGE_HEADER_OFFSET, header, sizeof(header));
 
 				f_close(&file);
