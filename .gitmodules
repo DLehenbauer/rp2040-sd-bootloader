@@ -1,0 +1,6 @@
+[submodule "ext/no-OS-FatFS-SD-SPI-RPi-Pico"]
+	path = ext/no-OS-FatFS-SD-SPI-RPi-Pico
+	url = git@github.com:Tails86/no-OS-FatFS-SD-SPI-RPi-Pico.git
+[submodule "ext/pico-sdk"]
+	path = ext/pico-sdk
+	url = git@github.com:raspberrypi/pico-sdk.git

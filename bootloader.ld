@@ -21,10 +21,10 @@
     __stack (== StackTop)
 */
 
-/* Limit flash to 12k, so we can use 12-16k for the image header */
+/* Limit flash to 52k, so we can use 52-56k for the image header */
 MEMORY
 {
-    FLASH(rx) : ORIGIN = 0x10000000, LENGTH = 12k
+    FLASH(rx) : ORIGIN = 0x10000000, LENGTH = 52k
     RAM(rwx) : ORIGIN =  0x20000000, LENGTH = 256k
     SCRATCH_X(rwx) : ORIGIN = 0x20040000, LENGTH = 4k
     SCRATCH_Y(rwx) : ORIGIN = 0x20041000, LENGTH = 4k
@@ -251,4 +251,3 @@ SECTIONS
     ASSERT( __binary_info_header_end - __logical_binary_start <= 256, "Binary info must be in first 256 bytes of the binary")
     /* todo assert on extra code */
 }
-

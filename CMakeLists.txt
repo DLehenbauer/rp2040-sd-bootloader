@@ -24,6 +24,28 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+# Have pico_sdk_import.cmake use the local SDK if it was pulled down; otherwise, use path at
+# PICO_SDK_PATH environment variable as specified within pico_sdk_import.cmake
+if (EXISTS "${CMAKE_SOURCE_DIR}/ext/pico-sdk/CMakeLists.txt")
+    set(PICO_SDK_PATH "${CMAKE_SOURCE_DIR}/ext/pico-sdk/" CACHE INTERNAL PICO_SDK_PATH)
+    message("Using local pico SDK at ('${PICO_SDK_PATH}')")
+endif ()
+
+if (NOT DEFINED PICO_SDK_PATH AND NOT DEFINED ENV{PICO_SDK_PATH})
+    message(FATAL_ERROR "PICO_SDK_PATH not defined; either execute:\ngit submodule update --recursive --init\nor set PICO_SDK_PATH in environment")
+endif ()
+
+if (EXISTS "${CMAKE_SOURCE_DIR}/ext/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI/CMakeLists.txt")
+    set(SD_SPI_PROJECT_PATH "${CMAKE_SOURCE_DIR}/ext/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI" CACHE INTERNAL SD_SPI_PROJECT_PATH)
+    message("Using local FatFs_SPI at ('${SD_SPI_PROJECT_PATH}')")
+endif ()
+
+if (NOT DEFINED SD_SPI_PROJECT_PATH AND NOT DEFINED ENV{SD_SPI_PROJECT_PATH})
+    message(FATAL_ERROR "SD_SPI_PROJECT_PATH not defined; either execute:\ngit submodule update --recursive --init\nor set SD_SPI_PROJECT_PATH in environment")
+endif ()
+
 include(pico_sdk_import.cmake)
 
 project(test_project C CXX ASM)
@@ -33,9 +55,12 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
+# Import SD card project
+add_subdirectory("${SD_SPI_PROJECT_PATH}" "${CMAKE_CURRENT_BINARY_DIR}/FatFs_SPI")
+
 # Build the bootloader as a standalone thing
 
-add_executable(bootloader main.c)
+add_executable(bootloader main.c sd_hw_config.c)
 
 function(target_cl_options option)
     target_compile_options(bootloader PRIVATE ${option})
@@ -50,17 +75,25 @@ target_link_options(bootloader PRIVATE "LINKER:--gc-sections")
 pico_add_extra_outputs(bootloader)
 pico_set_binary_type(bootloader copy_to_ram)
 
+# The sd driver takes control of the LED unless NO_PICO_LED is defined
+target_compile_definitions(bootloader PUBLIC
+  NO_PICO_LED
+)
+
 set_target_properties(bootloader PROPERTIES COMPILE_FLAGS "-Wall")
 
 pico_set_linker_script(bootloader ${CMAKE_CURRENT_SOURCE_DIR}/bootloader.ld)
 
 target_link_libraries(bootloader
                       pico_stdlib
+					  #pico_stdio_usb
                       hardware_dma
                       hardware_flash
                       hardware_structs
                       hardware_resets
-                      cmsis_core)
+                      cmsis_core
+					  boot_uf2_headers
+					  FatFs_SPI)
 
 set(BOOTLOADER_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "")
 
@@ -88,45 +121,77 @@ endfunction()
 
 bootloader_define_library()
 
-# Provide a helper to build a combined target
-
-function(bootloader_build_combined NAME)
-	set(APP ${NAME}_app)
-	set(APP_BIN ${CMAKE_CURRENT_BINARY_DIR}/${APP}.bin)
-	set(APP_HDR ${CMAKE_CURRENT_BINARY_DIR}/${APP}_hdr.bin)
-
-	set(COMBINED ${NAME}_combined)
-
-	target_link_libraries(${NAME} bootloader_library)
-
-	pico_set_linker_script(${NAME} ${BOOTLOADER_DIR}/combined.ld)
-
-	pico_add_bin_output(${NAME})
-
-	# TODO: The hard-coded 16k here is a bit nasty
-	add_custom_target(${APP}_bin DEPENDS ${APP_BIN})
-	add_custom_command(OUTPUT ${APP_BIN} DEPENDS ${NAME}.bin
-		COMMAND dd ibs=1k iseek=16 if=${NAME}.bin of=${APP_BIN}
-	)
-
-	# TODO: The hard-coded address here is a bit nasty
-	add_custom_target(${APP}_hdr DEPENDS ${APP}_bin)
-	add_custom_command(OUTPUT ${APP_HDR} DEPENDS ${APP_BIN}
-		COMMAND ${BOOTLOADER_DIR}/gen_imghdr.py -a 0x10004000 ${APP_BIN} ${APP_HDR}
-	)
-
-	add_custom_target(${COMBINED} ALL DEPENDS ${APP_HDR})
-	add_custom_command(TARGET ${COMBINED} DEPENDS ${APP_HDR}
-		COMMAND ${CMAKE_OBJCOPY} --update-section .app_hdr=${APP_HDR} ${NAME}.elf ${COMBINED}.elf
-	)
-	add_custom_command(TARGET ${COMBINED} POST_BUILD
-		COMMAND ${CMAKE_OBJCOPY} -Obinary ${COMBINED}.elf ${COMBINED}.bin
-	)
-endfunction()
-
 # Provide a helper to build a standalone target
 
 function(bootloader_build_standalone NAME)
+	set(APP_HDR_NAME ${NAME}_hdr_standalone)
+	set(APP_HDR_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_HDR_NAME}.bin)
+	set(APP_BIN_PATH ${CMAKE_CURRENT_BINARY_DIR}/${NAME}.bin)
+	set(APP_WHEADER_NAME ${NAME}_w_header)
+	set(APP_WHEADER_ELF_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.elf)
+	set(APP_WHEADER_BIN_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.bin)
+	set(APP_WHEADER_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.uf2)
+
 	pico_set_linker_script(${NAME} ${BOOTLOADER_DIR}/standalone.ld)
 	pico_add_bin_output(${NAME})
+
+	add_custom_target(${APP_HDR_NAME} DEPENDS ${NAME})
+	add_custom_command(TARGET ${APP_HDR_NAME} DEPENDS ${APP_BIN_PATH}
+		COMMAND ${BOOTLOADER_DIR}/gen_imghdr.py -a 0x1000E000 ${APP_BIN_PATH} ${APP_HDR_PATH}
+	)
+
+	add_custom_target(${APP_WHEADER_NAME} ALL DEPENDS ${APP_HDR_NAME})
+	add_custom_command(TARGET ${APP_WHEADER_NAME} DEPENDS ${APP_HDR_PATH}
+		COMMAND ${CMAKE_OBJCOPY} --update-section .app_hdr=${APP_HDR_PATH} ${CMAKE_CURRENT_BINARY_DIR}/${NAME}.elf ${APP_WHEADER_ELF_PATH}
+	)
+	add_custom_command(TARGET ${APP_WHEADER_NAME} DEPENDS ${APP_WHEADER_ELF_PATH}
+		COMMAND ${CMAKE_OBJCOPY} -O binary ${APP_WHEADER_ELF_PATH} ${APP_WHEADER_BIN_PATH}
+	)
+	add_custom_command(TARGET ${APP_WHEADER_NAME} DEPENDS ${APP_WHEADER_ELF_PATH} elf2uf2/elf2uf2
+		COMMAND elf2uf2/elf2uf2 ${APP_WHEADER_ELF_PATH} ${APP_WHEADER_UF2_PATH}
+	)
 endfunction()
+
+# Provide a helper to build a combined target
+
+function(bootloader_build_combined BTL_NAME APP_NAME)
+	set(BTL_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${BTL_NAME}.uf2)
+	set(APP_WHEADER_NAME ${APP_NAME}_w_header)
+	set(APP_WHEADER_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.uf2)
+
+	bootloader_build_standalone(${APP_NAME})
+
+	# Simply concatenate the two uf2 files which *should* both be self-contained
+	set(COMBINED_NAME ${BTL_NAME}_${APP_NAME}_combined)
+	set(COMBINED_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${COMBINED_NAME}.uf2)
+	add_custom_target(${COMBINED_NAME} ALL
+		COMMENT "Building full UF2 image"
+		COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/uf2tool.py
+				-o ${COMBINED_UF2_PATH} ${BTL_UF2_PATH} ${APP_WHEADER_UF2_PATH}
+	 	DEPENDS ${BTL_NAME} ${APP_WHEADER_NAME})
+
+endfunction()
+
+
+# Embed version info into the uf2 file
+pico_set_program_name(bootloader "Bootloader")
+pico_set_program_version(bootloader "1.0")
+# Prints how much memory used at end of build output
+# (RAM usage only shows global, preallocated mem and nothing else)
+set_property(TARGET bootloader APPEND_STRING PROPERTY LINK_FLAGS "-Wl,--print-memory-usage")
+
+
+
+
+
+add_executable(blink_noboot2 blink.c)
+
+pico_add_extra_outputs(blink_noboot2)
+
+set_target_properties(blink_noboot2 PROPERTIES COMPILE_FLAGS "-Wall")
+
+#bootloader_build_standalone(blink_noboot2)
+bootloader_build_combined(bootloader blink_noboot2)
+
+target_link_libraries(blink_noboot2 pico_stdlib_headers pico_stdlib hardware_watchdog hardware_structs)

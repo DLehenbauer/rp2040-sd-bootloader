@@ -24,7 +24,8 @@
 /* Skip 16kB at the start of flash, that's where our bootloader is */
 MEMORY
 {
-    FLASH(rx) : ORIGIN = 0x10000000 + 16k, LENGTH = 2048k - 16k
+    FLASH(rx) : ORIGIN = 0x10000000 + 56k, LENGTH = 2048k - 56k
+    FLASH_IMGHDR(rx) : ORIGIN = 0x10000000 + 52k, LENGTH = 4k
     RAM(rwx) : ORIGIN =  0x20000000, LENGTH = 256k
     SCRATCH_X(rwx) : ORIGIN = 0x20040000, LENGTH = 4k
     SCRATCH_Y(rwx) : ORIGIN = 0x20041000, LENGTH = 4k
@@ -37,6 +38,16 @@ SECTIONS
     .flash_begin : {
         __flash_binary_start = .;
     } > FLASH
+
+    /*
+     * Name a section for the image header.
+     * The contents will get replaced post-build
+     */
+    .app_hdr : {
+	LONG(0xdeaddead)
+	LONG(0)
+	LONG(0xdeaddead)
+    } > FLASH_IMGHDR
 
     /* boot2 would go here, but we don't want it */
 
@@ -231,4 +242,3 @@ SECTIONS
     ASSERT( __binary_info_header_end - __logical_binary_start <= 256, "Binary info must be in first 256 bytes of the binary")
     /* todo assert on extra code */
 }
-
