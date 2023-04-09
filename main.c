@@ -138,7 +138,6 @@ static bool image_header_ok(struct image_header *hdr)
 
 	// Reset vector should be in the image, and thumb (bit 0 set)
 	if ((vtor[1] < hdr->vtor) || (vtor[1] > hdr->vtor + hdr->size) || !(vtor[1] & 1)) {
-		printf("f: tables %08lX\n", vtor[1]);
 		return false;
 	}
 

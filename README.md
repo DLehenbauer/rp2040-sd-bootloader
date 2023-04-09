@@ -10,6 +10,8 @@ uf2tool.py was copied from https://github.com/rhulme/pico-flashloader - licensin
 
 This example depends on the SD card library https://github.com/Tails86/no-OS-FatFS-SD-SPI-RPi-Pico which was forked from https://github.com/carlk3/no-OS-FatFS-SD-SPI-RPi-Pico
 
+After .uf2 files are created, either bootloader.uf2 or bootloader_blink_noboot2_combined.uf2 may be loaded on the RP2040. Then either blink_noboo2_w_header.uf2 or bootloader_blink_noboot2_combined.uf2 may be copied onto an SD card as application.uf2 when flash through the bootloader is desired. For the case of the combined uf2 on SD card, the bootloader code will be ignored. This allows for only a single file to be kept track of.
+
 
 # RP2040 Serial Bootloader
 
