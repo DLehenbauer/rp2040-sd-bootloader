@@ -21,11 +21,12 @@
     __stack (== StackTop)
 */
 
-/* Skip 16kB at the start of flash, that's where our bootloader is */
+INCLUDE "linker_defines.ld"
+
 MEMORY
 {
-    FLASH(rx) : ORIGIN = 0x10000000 + 56k, LENGTH = 2048k - 56k
-    FLASH_IMGHDR(rx) : ORIGIN = 0x10000000 + 52k, LENGTH = 4k
+    FLASH_IMGHDR(rx) : ORIGIN = 0x10000000 + __APPLICATION_HEADER_OFFSET, LENGTH = __APPLICATION_HEADER_LENGTH
+    FLASH(rx) : ORIGIN = 0x10000000 + __APPLICATION_OFFSET, LENGTH = __APPLICATION_LENGTH
     RAM(rwx) : ORIGIN =  0x20000000, LENGTH = 256k
     SCRATCH_X(rwx) : ORIGIN = 0x20040000, LENGTH = 4k
     SCRATCH_Y(rwx) : ORIGIN = 0x20041000, LENGTH = 4k

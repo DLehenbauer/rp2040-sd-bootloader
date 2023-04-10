@@ -82,7 +82,9 @@ target_compile_definitions(bootloader PUBLIC
 
 set_target_properties(bootloader PROPERTIES COMPILE_FLAGS "-Wall")
 
+target_link_directories(bootloader PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 pico_set_linker_script(bootloader ${CMAKE_CURRENT_SOURCE_DIR}/bootloader.ld)
+pico_add_link_depend(bootloader ${CMAKE_CURRENT_SOURCE_DIR}/linker_defines.ld)
 
 target_link_libraries(bootloader
                       pico_stdlib
@@ -123,7 +125,7 @@ bootloader_define_library()
 
 # Provide a helper to build a standalone target
 
-function(bootloader_build_standalone NAME)
+function(bootloader_build_standalone_application NAME)
 	set(APP_HDR_NAME ${NAME}_hdr_standalone)
 	set(APP_HDR_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_HDR_NAME}.bin)
 	set(APP_BIN_PATH ${CMAKE_CURRENT_BINARY_DIR}/${NAME}.bin)
@@ -132,42 +134,45 @@ function(bootloader_build_standalone NAME)
 	set(APP_WHEADER_BIN_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.bin)
 	set(APP_WHEADER_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.uf2)
 
-	pico_set_linker_script(${NAME} ${BOOTLOADER_DIR}/standalone.ld)
+	target_link_directories(${NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	pico_set_linker_script(${NAME} ${CMAKE_CURRENT_SOURCE_DIR}/application.ld)
+	pico_add_link_depend(${NAME} ${CMAKE_CURRENT_SOURCE_DIR}/linker_defines.ld)
 	pico_add_bin_output(${NAME})
 
-	add_custom_target(${APP_HDR_NAME} DEPENDS ${NAME})
-	add_custom_command(TARGET ${APP_HDR_NAME} DEPENDS ${APP_BIN_PATH}
-		COMMAND ${BOOTLOADER_DIR}/gen_imghdr.py -a 0x1000E000 ${APP_BIN_PATH} ${APP_HDR_PATH}
-	)
+	add_custom_target(${APP_HDR_NAME} ALL
+		COMMENT "Generating application checksum and header"
+		COMMAND ${BOOTLOADER_DIR}/gen_imghdr.py --linker-defines-file ${BOOTLOADER_DIR}/linker_defines.ld ${APP_BIN_PATH} ${APP_HDR_PATH}
+	 	DEPENDS ${NAME} ${APP_BIN_PATH})
 
-	add_custom_target(${APP_WHEADER_NAME} ALL DEPENDS ${APP_HDR_NAME})
-	add_custom_command(TARGET ${APP_WHEADER_NAME} DEPENDS ${APP_HDR_PATH}
+	add_custom_target(${APP_WHEADER_NAME} ALL
+		COMMENT "Generating application with updated header"
 		COMMAND ${CMAKE_OBJCOPY} --update-section .app_hdr=${APP_HDR_PATH} ${CMAKE_CURRENT_BINARY_DIR}/${NAME}.elf ${APP_WHEADER_ELF_PATH}
-	)
-	add_custom_command(TARGET ${APP_WHEADER_NAME} DEPENDS ${APP_WHEADER_ELF_PATH}
 		COMMAND ${CMAKE_OBJCOPY} -O binary ${APP_WHEADER_ELF_PATH} ${APP_WHEADER_BIN_PATH}
-	)
-	add_custom_command(TARGET ${APP_WHEADER_NAME} DEPENDS ${APP_WHEADER_ELF_PATH} elf2uf2/elf2uf2
 		COMMAND elf2uf2/elf2uf2 ${APP_WHEADER_ELF_PATH} ${APP_WHEADER_UF2_PATH}
-	)
+		DEPENDS ${APP_HDR_NAME} ${APP_HDR_PATH} ${CMAKE_CURRENT_BINARY_DIR}/elf2uf2/elf2uf2)
+
 endfunction()
 
 # Provide a helper to build a combined target
 
-function(bootloader_build_combined BTL_NAME APP_NAME)
+function(bootloader_build_combined APP_NAME)
+	set(BTL_NAME bootloader)
 	set(BTL_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${BTL_NAME}.uf2)
 	set(APP_WHEADER_NAME ${APP_NAME}_w_header)
 	set(APP_WHEADER_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.uf2)
 
-	bootloader_build_standalone(${APP_NAME})
+	bootloader_build_standalone_application(${APP_NAME})
 
 	# Simply concatenate the two uf2 files which *should* both be self-contained
+	# Data length of each UF2 block must be exactly 256 for bootloader to function properly
 	set(COMBINED_NAME ${BTL_NAME}_${APP_NAME}_combined)
 	set(COMBINED_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${COMBINED_NAME}.uf2)
 	add_custom_target(${COMBINED_NAME} ALL
 		COMMENT "Building full UF2 image"
 		COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/uf2tool.py
+				--data-len-min 256
+				--data-len-max 256
 				-o ${COMBINED_UF2_PATH} ${BTL_UF2_PATH} ${APP_WHEADER_UF2_PATH}
 	 	DEPENDS ${BTL_NAME} ${APP_WHEADER_NAME})
 
@@ -191,7 +196,8 @@ pico_add_extra_outputs(blink_noboot2)
 
 set_target_properties(blink_noboot2 PROPERTIES COMPILE_FLAGS "-Wall")
 
-#bootloader_build_standalone(blink_noboot2)
-bootloader_build_combined(bootloader blink_noboot2)
+# Either or, not both (combined function builds standalone application too)
+#bootloader_build_standalone_application(blink_noboot2)
+bootloader_build_combined(blink_noboot2)
 
 target_link_libraries(blink_noboot2 pico_stdlib_headers pico_stdlib hardware_watchdog hardware_structs)

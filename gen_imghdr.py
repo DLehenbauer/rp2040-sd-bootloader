@@ -28,26 +28,47 @@ import binascii
 import struct
 import sys
 
-def any_int(x):
-    try:
-        return int(x, 0)
-    except:
-        raise argparse.ArgumentTypeError("expected an integer, not '{!r}'".format(x))
-
 parser = argparse.ArgumentParser()
 parser.add_argument("ifile", help="Input application binary (binary)")
 parser.add_argument("ofile", help="Output header file (binary)")
-parser.add_argument("-a", "--addr", help="Load address of the application image",
-                    type=any_int, default=0x1000E000)
+parser.add_argument("--linker-defines-file", help="Linker defines file")
 args = parser.parse_args()
 
 try:
     idata = open(args.ifile, "rb").read()
-    idata = idata[4096:]
 except:
     sys.exit("Could not open input file '{}'".format(args.ifile))
 
-vtor = args.addr
+linker_args = {}
+with open(args.linker_defines_file, 'r') as fd:
+    for line in fd.readlines():
+        while line.find('*/') > line.find('/*'):
+            line = line[:line.find('/*')] + line[line.find('*/') + 2:]
+        if '//' in line:
+            line = line[:line.find('//')]
+        if '=' in line:
+            key_value_pair = line.split('=')
+            key = key_value_pair[0].strip()
+            value = key_value_pair[1].strip().rstrip(';').replace('k', '*1024')
+            for k,v in linker_args.items():
+                value = value.replace(k, str(v))
+            eval_value = eval(value)
+            linker_args[key] = eval_value
+
+print('Parsed linker defines:')
+for k,v in linker_args.items():
+    print('{} = 0x{:08x}'.format(k,v))
+
+flash_addr = 0x10000000
+app_addr = flash_addr + linker_args['__APPLICATION_OFFSET']
+header_addr = flash_addr + linker_args['__APPLICATION_HEADER_OFFSET']
+
+# Remove header from data
+offset = app_addr - header_addr
+idata = idata[offset:]
+
+
+vtor = app_addr
 size = len(idata)
 crc = binascii.crc32(idata)
 

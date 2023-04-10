@@ -60,7 +60,7 @@ def updateBuf(buf):
         curblock += 1
 
 # Check the uf2 file passed in buf is valid and contiguous
-def check_uf2(start, buf):
+def check_uf2(start, buf, data_len_min=None, data_len_max=None):
     numblocks = len(buf) // 512
     numpadblocks = 0
     curaddr = start
@@ -87,6 +87,10 @@ def check_uf2(start, buf):
 
         datalen = hd[4]
         assert datalen <= 476, f"Invalid UF2 data size at {ptr}"
+        if data_len_min is not None:
+            assert datalen >= data_len_min, f"UF2 data size ({datalen}) at {ptr} is less than specified minimum ({data_len_min})"
+        if data_len_max is not None:
+            assert datalen <= data_len_max, f"UF2 data size ({datalen}) at {ptr} is more than specified minimum ({data_len_max})"
 
         newaddr = hd[3]
         if (hd[2] & 0x2000):
@@ -110,7 +114,7 @@ def check_uf2(start, buf):
     return (curaddr, numblocks, newbuf)
 
 
-def process(start, infiles, outfile):
+def process(start, infiles, outfile, data_len_min=None, data_len_max=None):
     data = bytearray()
     block = 0
     curaddr = start
@@ -120,7 +124,7 @@ def process(start, infiles, outfile):
             try:
 
                 buf = f.read()
-                curaddr, blocks, buf = check_uf2(curaddr, buf)
+                curaddr, blocks, buf = check_uf2(curaddr, buf, data_len_min, data_len_max)
                 data.extend(buf)
 
                 block += blocks
@@ -135,7 +139,7 @@ def process(start, infiles, outfile):
     if outfile is not None:
         updateBuf(data)
         try:
-            check_uf2(start, data)
+            check_uf2(start, data, data_len_min, data_len_max)
         except AssertionError as e:
             print("***************************************************************")
             print(f"UF2 sanity check of combined file failed:")
@@ -154,12 +158,14 @@ def main():
     parser.add_argument('--start', type=auto_int, default=0x10000000)
     parser.add_argument('-o', dest='outfile', nargs='?')
     parser.add_argument('infile', nargs='+')
+    parser.add_argument('--data-len-min', type=int, default=None)
+    parser.add_argument('--data-len-max', type=int, default=None)
 
     args = parser.parse_args()
 
     if (args.outfile is not None) and (len(args.infile) == 1):
         print("Ignoring output file setting with only one input file\n");
 
-    process(args.start, args.infile, args.outfile)
+    process(args.start, args.infile, args.outfile, args.data_len_min, args.data_len_max)
 
 main()

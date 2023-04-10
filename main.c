@@ -30,6 +30,10 @@
 #include "rtc.h"
 #include "sd_card.h"
 
+// Defined in linker file
+extern void* __APPLICATION_HEADER_OFFSET;
+extern void* __APPLICATION_OFFSET;
+
 // SD_APPLICATION_NAME can be defined externally
 #ifndef SD_APPLICATION_NAME
 #define SD_APPLICATION_NAME "0:/application.uf2"
@@ -41,7 +45,7 @@
 //  - No valid image header
 #define BOOTLOADER_ENTRY_MAGIC 0xb105f00d
 
-#define IMAGE_HEADER_OFFSET (52 * 1024)
+#define IMAGE_HEADER_OFFSET ((uint32_t)&__APPLICATION_HEADER_OFFSET)
 
 #define APP_ADDR_MIN (XIP_BASE + IMAGE_HEADER_OFFSET)
 #define FLASH_ADDR_MAX (XIP_BASE + PICO_FLASH_SIZE_BYTES)
