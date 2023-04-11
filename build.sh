@@ -7,8 +7,8 @@ GPP="/usr/bin/arm-none-eabi-g++"
 
 # Force the elf and uf2 binary files to always be regenerated on build
 # (this is so old uf2 files don't pile up in dist directory)
-rm ${BUILD_DIR}/*.elf
-rm ${BUILD_DIR}/*.uf2
+rm ${BUILD_DIR}/*/*/*.elf
+rm ${BUILD_DIR}/*/*/*.uf2
 
 /usr/bin/cmake \
     --no-warn-unused-cli \
@@ -42,6 +42,6 @@ fi
 
 mkdir -p ${DIST_DIR}
 rm -rf ${DIST_DIR}/*
-cp ${BUILD_DIR}/bootloader.uf2 ${DIST_DIR}
-cp ${BUILD_DIR}/blink_noboot2_w_header.uf2 ${DIST_DIR}
-cp ${BUILD_DIR}/bootloader_blink_noboot2_combined.uf2 ${DIST_DIR}
+cp ${BUILD_DIR}/src/bootloader/bootloader.uf2 ${DIST_DIR}
+cp ${BUILD_DIR}/src/application/blink_noboot2_w_header.uf2 ${DIST_DIR}
+cp ${BUILD_DIR}/src/application/bootloader_blink_noboot2_combined.uf2 ${DIST_DIR}
