@@ -100,30 +100,6 @@ target_link_libraries(bootloader
 set(BOOTLOADER_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "")
 set(BOOTLOADER_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE INTERNAL "")
 
-# Build a library to embed into applications
-
-function(bootloader_define_library)
-	set(NAME bootloader)
-	set(ORIGINAL_BIN ${CMAKE_CURRENT_BINARY_DIR}/${NAME}.bin)
-	set(BIN_ASM ${CMAKE_CURRENT_BINARY_DIR}/${NAME}_bin.S)
-
-	add_custom_target(${NAME}_bin DEPENDS ${ORIGINAL_BIN})
-	add_custom_command(OUTPUT ${ORIGINAL_BIN} DEPENDS ${NAME} COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${NAME}> ${ORIGINAL_BIN})
-
-	find_package (Python3 REQUIRED COMPONENTS Interpreter)
-	add_custom_target(${NAME}_bin_asm DEPENDS ${BIN_ASM})
-	add_custom_command(OUTPUT ${BIN_ASM} DEPENDS ${ORIGINAL_BIN}
-		COMMAND ${Python3_EXECUTABLE} ${BOOTLOADER_DIR}/mkasm.py ${ORIGINAL_BIN} ${BIN_ASM}
-	)
-
-	add_library(${NAME}_library INTERFACE)
-	add_dependencies(${NAME}_library ${NAME}_bin_asm)
-	# not strictly (or indeed actually) a link library, but this avoids dependency cycle
-	target_link_libraries(${NAME}_library INTERFACE ${BIN_ASM})
-endfunction()
-
-bootloader_define_library()
-
 # Provide a helper to build a standalone target
 
 function(bootloader_build_standalone_application NAME)
