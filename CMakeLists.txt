@@ -98,6 +98,7 @@ target_link_libraries(bootloader
 					  FatFs_SPI)
 
 set(BOOTLOADER_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "")
+set(BOOTLOADER_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE INTERNAL "")
 
 # Build a library to embed into applications
 
@@ -134,9 +135,9 @@ function(bootloader_build_standalone_application NAME)
 	set(APP_WHEADER_BIN_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.bin)
 	set(APP_WHEADER_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.uf2)
 
-	target_link_directories(${NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-	pico_set_linker_script(${NAME} ${CMAKE_CURRENT_SOURCE_DIR}/application.ld)
-	pico_add_link_depend(${NAME} ${CMAKE_CURRENT_SOURCE_DIR}/linker_defines.ld)
+	target_link_directories(${NAME} PRIVATE ${BOOTLOADER_DIR})
+	pico_set_linker_script(${NAME} ${BOOTLOADER_DIR}/application.ld)
+	pico_add_link_depend(${NAME} ${BOOTLOADER_DIR}/linker_defines.ld)
 	pico_add_bin_output(${NAME})
 
 	add_custom_target(${APP_HDR_NAME} ALL
@@ -157,7 +158,7 @@ endfunction()
 
 function(bootloader_build_combined APP_NAME)
 	set(BTL_NAME bootloader)
-	set(BTL_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${BTL_NAME}.uf2)
+	set(BTL_UF2_PATH ${BOOTLOADER_BINARY_DIR}/${BTL_NAME}.uf2)
 	set(APP_WHEADER_NAME ${APP_NAME}_w_header)
 	set(APP_WHEADER_UF2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${APP_WHEADER_NAME}.uf2)
 
@@ -170,7 +171,7 @@ function(bootloader_build_combined APP_NAME)
 	add_custom_target(${COMBINED_NAME} ALL
 		COMMENT "Building full UF2 image"
 		COMMAND ${Python3_EXECUTABLE}
-				${CMAKE_CURRENT_SOURCE_DIR}/uf2tool.py
+				${BOOTLOADER_DIR}/uf2tool.py
 				--data-len-min 256
 				--data-len-max 256
 				-o ${COMBINED_UF2_PATH} ${BTL_UF2_PATH} ${APP_WHEADER_UF2_PATH}
