@@ -46,7 +46,7 @@ if (NOT DEFINED SD_SPI_PROJECT_PATH AND NOT DEFINED ENV{SD_SPI_PROJECT_PATH})
     message(FATAL_ERROR "SD_SPI_PROJECT_PATH not defined; either execute:\ngit submodule update --recursive --init\nor set SD_SPI_PROJECT_PATH in environment")
 endif ()
 
-include(pico_sdk_import.cmake)
+include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
 project(test_project C CXX ASM)
 
