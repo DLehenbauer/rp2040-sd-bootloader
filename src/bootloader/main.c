@@ -60,12 +60,12 @@ static void disable_interrupts(void)
 
 static void reset_peripherals(void)
 {
-    reset_block(~(
-            RESETS_RESET_IO_QSPI_BITS |
-            RESETS_RESET_PADS_QSPI_BITS |
-            RESETS_RESET_SYSCFG_BITS |
-            RESETS_RESET_PLL_SYS_BITS
-    ));
+	reset_block(~(
+			RESETS_RESET_IO_QSPI_BITS |
+			RESETS_RESET_PADS_QSPI_BITS |
+			RESETS_RESET_SYSCFG_BITS |
+			RESETS_RESET_PLL_SYS_BITS
+	));
 }
 
 static void jump_to_vtor(uint32_t vtor)
@@ -168,7 +168,7 @@ static void do_reboot(bool to_bootloader)
 
 bool check_for_sd_application(sd_card_t* pSd)
 {
-    bool fileExists = false;
+	bool fileExists = false;
 
 	if (pSd->mounted && !sd_test_com(pSd))
 	{
@@ -185,23 +185,23 @@ bool check_for_sd_application(sd_card_t* pSd)
 		fr = f_mount(&pSd->fatfs, pSd->pcName, 1);
 	}
 
-    if (FR_OK == fr)
-    {
-        // Now mounted
-        pSd->mounted = true;
-        // Check for existence of application file
-        FILINFO fileInfo;
-        fr = f_stat(SD_APPLICATION_NAME, &fileInfo);
-        fileExists = (FR_OK == fr && fileInfo.fsize > 0);
-    }
-    else
-    {
-        // Failed
-        pSd->m_Status |= STA_NOINIT;
-        pSd->mounted = false;
-    }
+	if (FR_OK == fr)
+	{
+		// Now mounted
+		pSd->mounted = true;
+		// Check for existence of application file
+		FILINFO fileInfo;
+		fr = f_stat(SD_APPLICATION_NAME, &fileInfo);
+		fileExists = (FR_OK == fr && fileInfo.fsize > 0);
+	}
+	else
+	{
+		// Failed
+		pSd->m_Status |= STA_NOINIT;
+		pSd->mounted = false;
+	}
 
-    return fileExists;
+	return fileExists;
 }
 
 static bool should_stay_in_bootloader()
@@ -307,13 +307,13 @@ int main(void)
 	gpio_put(PICO_DEFAULT_LED_PIN, 1);
 
 	// Enable for debug, disable for release
-    // stdio_usb_init();
+	// stdio_usb_init();
 	// for (uint32_t i = 10; i > 0; --i)
 	// {
 	// 	printf("%lu\n", i);
 	// 	sleep_ms(1000);
 	// }
-    // printf("0... start\n");
+	// printf("0... start\n");
 
 	sleep_ms(100);
 

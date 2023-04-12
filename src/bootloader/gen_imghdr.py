@@ -39,21 +39,55 @@ try:
 except:
     sys.exit("Could not open input file '{}'".format(args.ifile))
 
+# Parse all arguments in linker file
 linker_args = {}
 with open(args.linker_defines_file, 'r') as fd:
+    wait_for_comment_end = False
     for line in fd.readlines():
+        # Handle comments
+        if wait_for_comment_end:
+            if '*/' in line:
+                line = line[line.find('*/') + 2:]
+                wait_for_comment_end = False
+            else:
+                # Multi-line comment is not complete; ignore this line
+                continue
         while line.find('*/') > line.find('/*'):
             line = line[:line.find('/*')] + line[line.find('*/') + 2:]
-        if '//' in line:
-            line = line[:line.find('//')]
-        if '=' in line:
-            key_value_pair = line.split('=')
-            key = key_value_pair[0].strip()
-            value = key_value_pair[1].strip().rstrip(';').replace('k', '*1024')
-            for k,v in linker_args.items():
-                value = value.replace(k, str(v))
-            eval_value = eval(value)
-            linker_args[key] = eval_value
+        if '/*' in line:
+            line = line[:line.find('/*')]
+            wait_for_comment_end = True
+
+        # Allow for multiple ; in a single line
+        for sline in line.strip().split(';')[:-1]:
+            if '=' in sline:
+                key_value_pair = sline.split('=')
+                key = key_value_pair[0].strip()
+                # Clean up line and support k and m postfixes
+                value = (key_value_pair[1].strip().rstrip(';')
+                            .replace('k', '*1024').replace('K', '*1024')
+                            .replace('m', '*1024*1024').replace('M', '*1024*1024'))
+                # Support octal
+                idx = value.find('0')
+                while idx >= 0:
+                    if (
+                        idx < (len(value) - 1)
+                        and (idx == 0 or value[idx-1] not in '0123456789')
+                        and value[idx+1] != 'x'
+                    ):
+                        # Octal detected - convert to Python syntax
+                        value = value[:idx+1] + 'o' + value[idx+1:]
+                    idx = value.find('0', idx + 1)
+                # Support +=, -=, *=, /=, &=
+                if key[-1] in '+-*/&':
+                    sign = key[-1]
+                    key = key[:-1].strip()
+                    value = '{} {} ({})'.format(linker_args[key], sign, value)
+                # Apply any previously defined value key in current value
+                for k,v in linker_args.items():
+                    value = value.replace(k, str(v))
+                # Use Python evaluate to get the integer value of the equation
+                linker_args[key] = eval(value)
 
 print('Parsed linker defines:')
 for k,v in linker_args.items():

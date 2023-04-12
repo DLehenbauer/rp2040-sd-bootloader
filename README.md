@@ -1,7 +1,5 @@
 # RP2040 SD Card Bootloader
 
-THIS IS A PROOF OF CONCEPT, NOT A POLISHED PROJECT
-
 This was forked from RP2040 Serial Bootloader to provide the similar functionality but instead read and load .uf2 file from SD card.
 
 Blink example was copied from https://github.com/usedbytes/pico-blink-noboot2
