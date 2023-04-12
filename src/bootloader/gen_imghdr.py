@@ -63,10 +63,7 @@ with open(args.linker_defines_file, 'r') as fd:
             if '=' in sline:
                 key_value_pair = sline.split('=')
                 key = key_value_pair[0].strip()
-                # Clean up line and support k and m postfixes
-                value = (key_value_pair[1].strip().rstrip(';')
-                            .replace('k', '*1024').replace('K', '*1024')
-                            .replace('m', '*1024*1024').replace('M', '*1024*1024'))
+                value = key_value_pair[1].strip()
                 # Support octal
                 idx = value.find('0')
                 while idx >= 0:
@@ -86,6 +83,9 @@ with open(args.linker_defines_file, 'r') as fd:
                 # Apply any previously defined value key in current value
                 for k,v in linker_args.items():
                     value = value.replace(k, str(v))
+                # Support k and m postfixes
+                value = value.replace('k', '*1024').replace('K', '*1024')
+                value = value.replace('m', '*1024*1024').replace('M', '*1024*1024')
                 # Use Python evaluate to get the integer value of the equation
                 linker_args[key] = eval(value)
 
