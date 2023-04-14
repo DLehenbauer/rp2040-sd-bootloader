@@ -93,7 +93,7 @@ print('Parsed linker defines:')
 for k,v in linker_args.items():
     print('{} = 0x{:08x}'.format(k,v))
 
-flash_addr = 0x10000000
+flash_addr = linker_args['__FLASH_START_ADDR']
 app_addr = flash_addr + linker_args['__APPLICATION_OFFSET']
 header_addr = flash_addr + linker_args['__APPLICATION_HEADER_OFFSET']
 

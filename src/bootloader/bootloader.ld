@@ -26,7 +26,7 @@ INCLUDE "linker_defines.ld"
 /* Limit flash to 52k, so we can use 52-56k for the image header */
 MEMORY
 {
-    FLASH(rx) : ORIGIN = 0x10000000 + __BOOTLOADER_OFFSET, LENGTH = __BOOTLOADER_LENGTH
+    FLASH(rx) : ORIGIN = __FLASH_START_ADDR + __BOOTLOADER_OFFSET, LENGTH = __BOOTLOADER_LENGTH
     RAM(rwx) : ORIGIN =  0x20000000, LENGTH = 256k
     SCRATCH_X(rwx) : ORIGIN = 0x20040000, LENGTH = 4k
     SCRATCH_Y(rwx) : ORIGIN = 0x20041000, LENGTH = 4k
