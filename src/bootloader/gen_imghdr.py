@@ -43,6 +43,8 @@ except:
 linker_args = {}
 with open(args.linker_defines_file, 'r') as fd:
     wait_for_comment_end = False
+    append_line = False
+    last_line = ''
     for line in fd.readlines():
         # Handle comments
         if wait_for_comment_end:
@@ -58,8 +60,22 @@ with open(args.linker_defines_file, 'r') as fd:
             line = line[:line.find('/*')]
             wait_for_comment_end = True
 
+        line = line.strip()
+
+        if append_line:
+            line = (last_line + ' ' + line).strip()
+            append_line = False
+
+        last_line = line
+
+        if ';' not in line:
+            if line:
+                # Multi-line expression
+                append_line = True
+            continue
+
         # Allow for multiple ; in a single line
-        for sline in line.strip().split(';')[:-1]:
+        for sline in line.split(';')[:-1]:
             if '=' in sline:
                 key_value_pair = sline.split('=')
                 key = key_value_pair[0].strip()
